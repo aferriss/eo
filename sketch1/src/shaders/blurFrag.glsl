@@ -8,7 +8,7 @@ varying vec2 v_texCoord;
 
 void main() {
 	vec2 uv = v_texCoord;
- 	gl_FragColor = blur(srcTex, uv, res, direction);
+ 	gl_FragColor = blur(srcTex, uv, res*0.5, direction);
   
   //gl_FragColor = vec4(1.0,0.0,0.0,1.0);
 }

@@ -63,7 +63,10 @@ function init() {
   scene.add( mesh );
 
   mesh = new THREE.Mesh( plane, blurShader);
+  
   rttScene.add(mesh);
+
+  mesh = new THREE.Mesh(plane, blurShader);
   finalScene.add(mesh);
 
   renderer = new THREE.WebGLRenderer();
@@ -76,7 +79,7 @@ function init() {
 function animate() {
   requestAnimationFrame( animate );
 
-  mesh.rotation.x += 0.01;
+  //mesh.rotation.x += 0.01;
   mesh.rotation.y += 0.02;
 
   blurShader.uniforms.direction.value = new THREE.Vector2(1.0,0.0);
@@ -87,6 +90,18 @@ function animate() {
 
   blurShader.uniforms.srcTex.value = hBlurRtt;
   blurShader.uniforms.direction.value = new THREE.Vector2(0.0,1.0);
+
+  for(var i = 0; i<10; i++){
+  renderer.render(finalScene, orthoCamera, rtt);
+
+  blurShader.uniforms.direction.value = new THREE.Vector2(1.0,0.0);
+  blurShader.uniforms.srcTex.value = rtt;
+  renderer.render(rttScene, orthoCamera, hBlurRtt);
+
+  blurShader.uniforms.srcTex.value = hBlurRtt;
+  blurShader.uniforms.direction.value = new THREE.Vector2(0.0,1.0);
+  }
+
 
   renderer.render(finalScene, orthoCamera);
 
