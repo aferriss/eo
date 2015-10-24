@@ -33,9 +33,9 @@ void main() {
 	offset[7] = vec2(0.0, step_h);
 	offset[8] = vec2(step_w, step_h);
 
-	kernel[0] = 0.666; kernel[1] = 0.666; kernel[2] = 0.0;
-	kernel[3] = 0.666; kernel[4] = 0.0; kernel[5] = 0.0;
-	kernel[6] = 0.0; kernel[7] = 0.00; kernel[8] = -2.0;
+	kernel[0] = 0.666; kernel[1] = 0.0; kernel[2] = 0.0;
+	kernel[3] = 0.666; kernel[4] = 0.0; kernel[5] = -2.0;
+	kernel[6] = 0.666; kernel[7] = 0.00; kernel[8] = -0.0;
 	
 	vec4 sum = input0;
 
