@@ -16,10 +16,12 @@ var finalScene;
 var hBlurRtt, finalSceneRtt;
 var sharpenShader;
 var sharpenScene, sharpenSceneRtt;
-var tempScene;
 var tempRtt;
+var colorMapScene;
+var inc = 0;
 init();
 animate();
+var omesh;
 
 var w;
 var h;
@@ -33,13 +35,12 @@ function init() {
   rttScene = new THREE.Scene();
   finalScene = new THREE.Scene();
   sharpenScene = new THREE.Scene();
-  tempScene = new THREE.Scene();
+  colorMapScene = new THREE.Scene();
 
   rtt = new THREE.WebGLRenderTarget(w, h, {minFilter: THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat});
   hBlurRtt = new THREE.WebGLRenderTarget(w, h, {minFilter: THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat});
   finalSceneRtt = new THREE.WebGLRenderTarget(w, h, {minFilter: THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat});
   sharpenSceneRtt = new THREE.WebGLRenderTarget(w, h, {minFilter: THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat});
-  tempRtt = new THREE.WebGLRenderTarget(w, h, {minFilter: THREE.LinearFilter, magFilter:THREE.LinearFilter, format:THREE.RGBAFormat});
 
   
   orthoCamera = new THREE.OrthographicCamera( w/-2, w/2, h/2, h/-2, -10000, 10000);
@@ -49,6 +50,7 @@ function init() {
   rttScene.add(orthoCamera);
   finalScene.add(orthoCamera);
   sharpenScene.add(orthoCamera);
+  colorMapScene.add(orthoCamera);
 
   geometry = new THREE.BoxGeometry( 200, 200, 200 );
   plane = new THREE.PlaneGeometry(w, h);
@@ -62,27 +64,43 @@ function init() {
     uniforms: {
       res: {type: 'v2', value: new THREE.Vector2(window.innerWidth, window.innerHeight)},
       srcTex: {type: 't', value: rtt},
-      direction: {type:'v2', value: new THREE.Vector2(1.0,0.0)}
+      direction: {type:'v2', value: new THREE.Vector2(1.0,0.0)},
+      step_w: {type: 'f', value: 0.89/w},
+      step_h: {type: 'f', value: 0.89/h},
     },
     vertexShader: glslify('../shaders/blurVert.glsl'),
     fragmentShader: glslify('../shaders/blurFrag.glsl'),
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    transparent: true,
+    blendSrc: THREE.SrcAlphaFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor
   });
 
   sharpenShader = new THREE.ShaderMaterial({
     uniforms: {
-      step_w: {type: 'f', value: 1.0/w},
-      step_h: {type: 'f', value: 1.0/h},
-      tex: {type:'t', value: finalSceneRtt }
+      step_w: {type: 'f', value: 0.15/w},
+      step_h: {type: 'f', value: 0.15/h},
+      tex: {type:'t', value: rtt }
     },
     vertexShader: glslify('../shaders/sharpenVert.glsl'),
     fragmentShader: glslify('../shaders/sharpenFrag.glsl'),
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    transparent: true,
+    blendSrc: THREE.SrcAlphaFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor
+  });
+
+  var colorMapShader = new THREE.ShaderMaterial({
+    vertexShader: glslify('../shaders/sharpenVert.glsl'),
+    fragmentShader: glslify('../shaders/colorMapShader.glsl'),
+    uniforms:{
+      tex: {type: 't', value: sharpenSceneRtt}
+    }
   });
 
 
-  mesh = new THREE.Mesh( geometry, material );
-  scene.add( mesh );
+  omesh = new THREE.Mesh( geometry, material );
+  scene.add( omesh );
 
   mesh = new THREE.Mesh( plane, blurShader);
   rttScene.add(mesh);
@@ -93,19 +111,30 @@ function init() {
   mesh = new THREE.Mesh(plane, sharpenShader);
   sharpenScene.add(mesh);
 
-  var sharpenMat = new THREE.MeshBasicMaterial({map:sharpenSceneRtt});
-  var mesh2 = new THREE.Mesh(plane, sharpenMat);
-  tempScene.add(mesh2);
+  mesh = new THREE.Mesh(plane, colorMapShader);
+  colorMapScene.add(mesh);
 
 
-  renderer = new THREE.WebGLRenderer();
+  //renderer = new THREE.WebGLRenderer();
+  renderer = new THREE.WebGLRenderer({alpha: false, preserveDrawingBuffer:true, antialias:false});
+  renderer.setPixelRatio(window.devicePixelRatio );
   renderer.setSize( window.innerWidth, window.innerHeight );
+  renderer.sortObjects = false;
+
+  renderer.autoClear = false;
+  //renderer.autoClearColor = false;
+  //renderer.autoClearDepth = true;
+  
+
+  console.log(renderer.getClearAlpha());
+  
 
   document.body.appendChild( renderer.domElement );
 
 }
 
-var inc = 0;
+
+
 function animate() {
   requestAnimationFrame( animate );
 
@@ -116,45 +145,54 @@ function animate() {
   } else{
     rotAmt = 0.01;
   }
-  //mesh.rotation.x += 0.01;
-  mesh.rotation.y += rotAmt;
-console.log(Math.floor((mesh.rotation.y * (180/Math.PI))) % 180);
+  //mesh.rotation.x += rotAmt * 100.5;
+  //mesh.rotation.y += rotAmt;
+  //mesh.rotation.z += 0.0000005;
+  //mesh.scale.x = mesh.scale.y += 0.01;
+
+  //console.log(Math.floor((mesh.rotation.y * (180/Math.PI))) % 180);
 
   blurShader.uniforms.direction.value = new THREE.Vector2(1.0,0.0);
-  if(inc == 0){
-    blurShader.uniforms.srcTex.value = rtt;
-    renderer.render(scene, camera, rtt );
-  }
-  else{
-    blurShader.uniforms.srcTex.value = tempRtt;
-  }
 
+  if(inc === 0){
+    renderer.render(scene, camera, rtt);
+  } 
+  //else{
+    //blurShader.uniforms.srcTex.value = sharpenSceneRtt;
+  //}
   
 
-  renderer.render(rttScene, orthoCamera, hBlurRtt);
+  renderer.render(rttScene, orthoCamera, hBlurRtt, false);
 
   blurShader.uniforms.srcTex.value = hBlurRtt;
   blurShader.uniforms.direction.value = new THREE.Vector2(0.0,1.0);
+  renderer.render(finalScene, orthoCamera, rtt, false);
 
-  
+
   //iterate over the blur a bunch
   for(var i = 0; i<1; i++){
-  renderer.render(finalScene, orthoCamera, rtt);
 
-  blurShader.uniforms.direction.value = new THREE.Vector2(1.0,0.0);
-  blurShader.uniforms.srcTex.value = rtt;
-  renderer.render(rttScene, orthoCamera, hBlurRtt);
+    blurShader.uniforms.srcTex.value = rtt;
+    renderer.render(rttScene, orthoCamera, hBlurRtt, false);
 
-  blurShader.uniforms.srcTex.value = hBlurRtt;
-  blurShader.uniforms.direction.value = new THREE.Vector2(0.0,1.0);
+    blurShader.uniforms.srcTex.value = hBlurRtt;
+    renderer.render(finalScene, orthoCamera, rtt, false);
+
   }
   
-
-  renderer.render(finalScene, orthoCamera, finalSceneRtt);
-  renderer.render(sharpenScene, orthoCamera, sharpenSceneRtt);
-  renderer.render(tempScene, orthoCamera, tempRtt);
-
-  renderer.render(tempScene, orthoCamera);
   
+  //renderer.render(sharpenScene, orthoCamera);
+  renderer.render(sharpenScene, orthoCamera, sharpenSceneRtt, false);
+  renderer.render(colorMapScene, orthoCamera);
+  blurShader.uniforms.srcTex.value = sharpenSceneRtt;
+/*
+  omesh.rotation.z += 0.001;
+  omesh.rotation.x += 0.01;
+  omesh.position.x = Math.sin(inc*0.05)*200;
+  //omesh.position.x += 1;
+
+  renderer.render(scene, camera);
+*/
+
   inc++;
 }
